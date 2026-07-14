@@ -281,24 +281,29 @@ body,
   top: 38%;
   transform: translate(-50%, -50%);
   font-family: Impact, "Arial Black", sans-serif;
-  font-size: 78px;
+  font-size: clamp(56px, 11vw, 132px);
+  max-width: 96vw;
   color: #ffe000;
   -webkit-text-stroke: 3px #d40000;
-  text-shadow: 4px 4px 0 #000, 0 0 30px rgba(255, 0, 0, 0.6);
+  /* Chromatic aberration fringes + drop shadow + red glow */
+  text-shadow: -4px 0 0 #00e5ff, 4px 0 0 #ff00d4, 6px 6px 0 #000, 0 0 34px rgba(255, 0, 0, 0.65);
   white-space: nowrap;
-  animation: mlg-impact-pop 2.1s cubic-bezier(0.2, 1.4, 0.4, 1) forwards;
+  animation: mlg-impact-pop 2.6s cubic-bezier(0.2, 1.4, 0.4, 1) forwards;
 }
 
+/* Slam in from huge and blurred, overshoot-bounce, blast out. */
 @keyframes mlg-impact-pop {
-  0% { transform: translate(-50%, -50%) scale(0.1) rotate(-14deg); opacity: 0; }
-  18% { transform: translate(-50%, -50%) scale(1.25) rotate(4deg); opacity: 1; }
-  30% { transform: translate(-50%, -50%) scale(1) rotate(-2deg); }
-  75% { transform: translate(-50%, -50%) scale(1.02) rotate(1deg); opacity: 1; }
-  100% { transform: translate(-50%, -50%) scale(1.6) rotate(0deg); opacity: 0; }
+  0% { transform: translate(-50%, -50%) scale(3) rotate(6deg) skewX(-6deg); opacity: 0; filter: blur(8px); letter-spacing: 0.25em; }
+  10% { transform: translate(-50%, -50%) scale(0.9) rotate(-3deg) skewX(3deg); opacity: 1; filter: blur(0); letter-spacing: -0.01em; }
+  18% { transform: translate(-50%, -50%) scale(1.18) rotate(2deg) skewX(-1deg); }
+  28% { transform: translate(-50%, -50%) scale(0.98) rotate(-1.2deg); }
+  38% { transform: translate(-50%, -50%) scale(1.05) rotate(0.6deg); }
+  80% { transform: translate(-50%, -50%) scale(1.06) rotate(0deg); opacity: 1; }
+  100% { transform: translate(-50%, -50%) scale(1.9) rotate(-2deg); opacity: 0; filter: blur(4px); }
 }
 
 .mlg-gg {
-  font-size: 150px;
+  font-size: clamp(110px, 24vw, 300px);
   animation: mlg-gg-spin 3.5s ease-out forwards;
 }
 
@@ -306,7 +311,7 @@ body,
 .mlg-ko-star {
   position: absolute;
   transform: translate(-50%, -50%);
-  font-size: 64px;
+  font-size: clamp(56px, 8vw, 96px);
   color: #fff6b0;
   text-shadow: 0 0 18px #ffe000, 0 0 40px #ff9100;
   animation: mlg-ko-pop 0.8s ease-out forwards;
@@ -320,7 +325,7 @@ body,
 }
 
 .mlg-impact--minor {
-  font-size: 40px;
+  font-size: clamp(30px, 5.5vw, 62px);
   top: 52%;
   -webkit-text-stroke: 2px #d40000;
 }
@@ -328,7 +333,7 @@ body,
 .mlg-impact--activate {
   color: #00e676;
   -webkit-text-stroke: 3px #003d1c;
-  font-size: 58px;
+  font-size: clamp(44px, 8vw, 96px);
 }
 
 /* Floating +points / +XP */
@@ -336,7 +341,7 @@ body,
   position: absolute;
   transform: translate(-50%, -50%);
   font-family: Impact, "Arial Black", sans-serif;
-  font-size: 30px;
+  font-size: clamp(26px, 4vw, 46px);
   color: #ffe000;
   -webkit-text-stroke: 1.5px #7a4a00;
   text-shadow: 2px 2px 0 #000;
@@ -501,7 +506,7 @@ body,
   width: 100%;
   text-align: center;
   font-family: Impact, "Arial Black", sans-serif;
-  font-size: 58px;
+  font-size: clamp(44px, 9vw, 108px);
   color: #ff1744;
   -webkit-text-stroke: 2px #fff;
   text-shadow: 0 0 24px rgba(255, 0, 0, 0.9);
@@ -544,47 +549,181 @@ body,
   line-height: 1;
 }
 
+/* Nacho-cheese tortilla chip. Zero assets harmed. */
+.mlg-confetto-dorito {
+  width: 18px;
+  height: 16px;
+  background: linear-gradient(160deg, #ffab40, #e65100);
+  clip-path: polygon(50% 0, 100% 100%, 0 100%);
+}
+
 @keyframes mlg-confetti-fall {
   0% { transform: translateY(0) rotate(0deg); opacity: 1; }
   90% { opacity: 1; }
   100% { transform: translateY(110vh) rotate(720deg); opacity: 0; }
 }
 
+/* Full-width caution-bar banner for hype-3 events and GET REKT. The
+   hue-rotate cycles the yellow/red text through the whole rainbow. */
+.mlg-impact--mega {
+  left: 0;
+  top: 38%;
+  width: 100%;
+  max-width: none;
+  transform: none;
+  text-align: center;
+  font-size: clamp(64px, 13vw, 170px);
+  padding: 0.05em 0;
+  background: linear-gradient(90deg, transparent, rgba(0, 0, 0, 0.55) 18%, rgba(0, 0, 0, 0.55) 82%, transparent);
+  animation: mlg-impact-slam 2.6s cubic-bezier(0.2, 1.4, 0.4, 1) forwards, mlg-hue 1.2s linear infinite;
+}
+
+@keyframes mlg-impact-slam {
+  0% { transform: scale(3.5) rotate(4deg); opacity: 0; filter: blur(10px); letter-spacing: 0.3em; }
+  10% { transform: scale(0.88) rotate(-2deg); opacity: 1; filter: blur(0); letter-spacing: 0; }
+  18% { transform: scale(1.22) rotate(1.4deg); }
+  28% { transform: scale(0.97) rotate(-0.8deg); }
+  38% { transform: scale(1.07) rotate(0.4deg); }
+  80% { transform: scale(1.08) rotate(0deg); opacity: 1; }
+  100% { transform: scale(2.2) rotate(-1.5deg); opacity: 0; filter: blur(5px); }
+}
+
+@keyframes mlg-hue {
+  to { filter: hue-rotate(360deg); }
+}
+
+/* Per-letter drop: the parent keeps position/size but hands motion to its
+   .mlg-letter spans; the parent only fades itself out at the end (this rule
+   must stay below .mlg-gg and --mega so it wins the animation property). */
+.mlg-impact--letters {
+  animation: mlg-letters-out 4.2s linear forwards;
+}
+
+@keyframes mlg-letters-out {
+  0%, 84% { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+.mlg-letter {
+  display: inline-block;
+  animation: mlg-letter-drop 0.55s cubic-bezier(0.3, 1.6, 0.4, 1) both;
+}
+
+@keyframes mlg-letter-drop {
+  0% { transform: translateY(-120vh) rotate(-18deg); }
+  60% { transform: translateY(0.06em) rotate(4deg); }
+  100% { transform: translateY(0) rotate(0deg); }
+}
+
+/* Radial anime speed lines, edges only, gone in half a second. */
+.mlg-speedlines {
+  position: absolute;
+  inset: 0;
+  background: repeating-conic-gradient(from 0deg at 50% 45%, transparent 0deg 5deg, rgba(255, 255, 255, 0.14) 5deg 7deg);
+  -webkit-mask-image: radial-gradient(ellipse at 50% 45%, transparent 32%, black 72%);
+  mask-image: radial-gradient(ellipse at 50% 45%, transparent 32%, black 72%);
+  animation: mlg-vignette-flash 0.5s ease-out forwards;
+}
+
+/* Checkmate impact frame. */
+.mlg-flash-white {
+  position: absolute;
+  inset: 0;
+  background: rgba(255, 255, 255, 0.75);
+  animation: mlg-vignette-flash 0.25s ease-out forwards;
+}
+
+/* "● REC" instant-replay corner badge. */
+.mlg-replay-badge {
+  position: absolute;
+  top: 18px;
+  right: 18px;
+  font-family: Impact, "Arial Black", sans-serif;
+  font-size: 20px;
+  letter-spacing: 2px;
+  color: #fff;
+  text-shadow: 2px 2px 0 #000;
+}
+
+.mlg-replay-badge i {
+  font-style: normal;
+  color: #ff1744;
+  animation: mlg-rec-blink 0.6s step-end infinite;
+}
+
+@keyframes mlg-rec-blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+
+/* Continuous low-level rumble for the checkmate celebration. Deliberately
+   tiny - it runs for seconds. The ID-scoped shake selectors below outrank
+   it, so a big shake plays out first and hands off to the rumble. */
+.mlg-rumble {
+  animation: mlg-rumble 0.28s linear infinite;
+}
+
+@keyframes mlg-rumble {
+  0% { transform: translate(0, 0) rotate(0deg); }
+  25% { transform: translate(3px, -2px) rotate(0.15deg); }
+  50% { transform: translate(-2px, 3px) rotate(-0.1deg); }
+  75% { transform: translate(-3px, -2px) rotate(0.12deg); }
+  100% { transform: translate(0, 0) rotate(0deg); }
+}
+
+/* Big shakes also rattle the HUD (banners, scoreboard) - the layer lives in
+   #hud, a sibling of the scene container. */
+#hud.mlg-hud-shake { animation: mlg-shake-2 0.55s linear; }
+
 /* Screen shake tiers applied to the scene container */
-#scene-container.mlg-shake-1 { animation: mlg-shake-1 0.35s linear; }
-#scene-container.mlg-shake-2 { animation: mlg-shake-2 0.45s linear; }
-#scene-container.mlg-shake-3 { animation: mlg-shake-3 0.6s linear; }
+#scene-container.mlg-shake-1 { animation: mlg-shake-1 0.4s linear; }
+#scene-container.mlg-shake-2 { animation: mlg-shake-2 0.55s linear; }
+#scene-container.mlg-shake-3 { animation: mlg-shake-3 0.7s linear; }
+#scene-container.mlg-shake-4 { animation: mlg-shake-4 0.9s linear; }
 
 @keyframes mlg-shake-1 {
   0% { transform: translate(0, 0); }
-  15% { transform: translate(-10px, 6px); }
-  30% { transform: translate(9px, -5px); }
-  45% { transform: translate(-7px, -6px); }
-  60% { transform: translate(6px, 5px); }
-  75% { transform: translate(-4px, 3px); }
-  90% { transform: translate(2px, -2px); }
+  15% { transform: translate(-14px, 8px); }
+  30% { transform: translate(12px, -7px); }
+  45% { transform: translate(-10px, -8px); }
+  60% { transform: translate(8px, 7px); }
+  75% { transform: translate(-5px, 4px); }
+  90% { transform: translate(3px, -2px); }
   100% { transform: translate(0, 0); }
 }
 
 @keyframes mlg-shake-2 {
   0% { transform: translate(0, 0) rotate(0deg); }
-  12% { transform: translate(-16px, 10px) rotate(-0.4deg); }
-  25% { transform: translate(14px, -8px) rotate(0.3deg); }
-  40% { transform: translate(-12px, -10px) rotate(-0.3deg); }
-  55% { transform: translate(10px, 8px) rotate(0.2deg); }
-  70% { transform: translate(-7px, 5px) rotate(-0.15deg); }
-  85% { transform: translate(4px, -3px) rotate(0.1deg); }
+  12% { transform: translate(-22px, 14px) rotate(-0.7deg); }
+  25% { transform: translate(19px, -11px) rotate(0.5deg); }
+  40% { transform: translate(-16px, -14px) rotate(-0.45deg); }
+  55% { transform: translate(13px, 11px) rotate(0.3deg); }
+  70% { transform: translate(-9px, 7px) rotate(-0.2deg); }
+  85% { transform: translate(5px, -4px) rotate(0.12deg); }
   100% { transform: translate(0, 0) rotate(0deg); }
 }
 
 @keyframes mlg-shake-3 {
   0% { transform: translate(0, 0) rotate(0deg) scale(1); }
-  10% { transform: translate(-24px, 14px) rotate(-0.9deg) scale(1.012); }
-  22% { transform: translate(21px, -12px) rotate(0.7deg) scale(1.008); }
-  36% { transform: translate(-17px, -15px) rotate(-0.6deg) scale(1.006); }
-  50% { transform: translate(15px, 12px) rotate(0.5deg) scale(1.004); }
-  64% { transform: translate(-11px, 8px) rotate(-0.35deg) scale(1.002); }
-  78% { transform: translate(7px, -6px) rotate(0.2deg) scale(1.001); }
-  90% { transform: translate(-3px, 3px) rotate(-0.1deg) scale(1); }
+  10% { transform: translate(-34px, 20px) rotate(-1.4deg) scale(1.02); }
+  22% { transform: translate(29px, -17px) rotate(1.1deg) scale(1.014); }
+  36% { transform: translate(-24px, -21px) rotate(-0.9deg) scale(1.01); }
+  50% { transform: translate(21px, 17px) rotate(0.7deg) scale(1.007); }
+  64% { transform: translate(-15px, 11px) rotate(-0.5deg) scale(1.004); }
+  78% { transform: translate(10px, -8px) rotate(0.3deg) scale(1.002); }
+  90% { transform: translate(-4px, 4px) rotate(-0.15deg) scale(1); }
+  100% { transform: translate(0, 0) rotate(0deg) scale(1); }
+}
+
+@keyframes mlg-shake-4 {
+  0% { transform: translate(0, 0) rotate(0deg) scale(1); }
+  8% { transform: translate(-48px, 28px) rotate(-2.2deg) scale(1.035); }
+  18% { transform: translate(42px, -24px) rotate(1.8deg) scale(1.026); }
+  30% { transform: translate(-35px, -29px) rotate(-1.4deg) scale(1.02); }
+  42% { transform: translate(29px, 24px) rotate(1.1deg) scale(1.015); }
+  54% { transform: translate(-23px, 16px) rotate(-0.8deg) scale(1.01); }
+  66% { transform: translate(17px, -13px) rotate(0.55deg) scale(1.006); }
+  78% { transform: translate(-11px, 9px) rotate(-0.35deg) scale(1.003); }
+  90% { transform: translate(5px, -4px) rotate(0.15deg) scale(1.001); }
   100% { transform: translate(0, 0) rotate(0deg) scale(1); }
 }

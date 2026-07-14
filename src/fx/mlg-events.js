@@ -59,6 +59,20 @@ export function capturePoints(history) {
   return (PIECE_POINTS[cur.captured.type] ?? 100) * streak;
 }
 
+// Single escalation scalar driving MLG intensity: 0 = quiet move, 1 = plain
+// capture, 2 = big capture or streak, 3 = full circus. `history` must
+// already include the latest move's record.
+export function hypeOf(history) {
+  const cur = history[history.length - 1];
+  if (!cur?.captured) return 0;
+  const streak = computeStreaks(history)[cur.piece.color];
+  const big = cur.captured.type === 'R' || cur.captured.type === 'C';
+  const topPriority = detectEvents(history)[0]?.priority ?? 0;
+  if (streak >= 4 || topPriority >= 65) return 3;
+  if (big || streak >= 2) return 2;
+  return 1;
+}
+
 // Detect all MLG events triggered by the latest move. `history` must already
 // include the move's record. Returns events sorted by descending priority.
 export function detectEvents(history) {

@@ -4,19 +4,23 @@
 // from the game history, so undo/reload resync is free.
 import * as THREE from 'three';
 import {
-  playAirhorn, playTripleAirhorn, playHitmarker, playStreakStinger,
-  playCoin, playRecordScratch, playWobbleDrop, playWhoosh, playKoStar,
-  say, stopSpeech,
+  playAirhorn, playAirhornRiff, playMegaAirhorn, playBassDrop, playSadTrombone,
+  playHitmarker, playStreakStinger, playCoin, playRecordScratch, playWobbleDrop,
+  playWhoosh, playKoStar, say, stopSpeech,
 } from './mlg-audio.js';
-import { detectEvents, computeStreaks, computeScores, capturePoints } from './mlg-events.js';
+import { detectEvents, computeStreaks, computeScores, capturePoints, hypeOf } from './mlg-events.js';
 import { tween, tweenPromise, cancelTween, setTimeScale, ease } from '../scene/tween.js';
 import { gridToWorld } from '../scene/scene.js';
 import { PIECE_HEIGHT, restingY } from '../scene/pieces.js';
 import { pieceChar } from '../game/notation.js';
 
-const CONFETTI_COLORS = ['#ffe000', '#ff1744', '#00e676', '#2979ff', '#e040fb', '#ff9100'];
+const CONFETTI_COLORS = ['#ffe000', '#ff1744', '#00e676', '#2979ff', '#e040fb', '#ff9100', '#69f000'];
 const CONFETTI_EMOJI = ['💯', '🔥', '😂', '🏆', '🥤', '😎', '👑'];
 const WEAPON_EMOJI = { C: '💣', R: '🏎️', H: '🐎', S: '🔪', G: '👑', A: '🛡️', E: '🐘' };
+
+// Motion-sickness guard: heavy camera work and shakes are capped, everything
+// else (text, confetti, audio) stays - the meme survives, the nausea doesn't.
+const REDUCED = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
 
 export function createMLG({ container, layer, camera, fxGroup, rig, getHistory, getSymbols, getMeshes }) {
   let enabled = false;
@@ -46,8 +50,25 @@ export function createMLG({ container, layer, camera, fxGroup, rig, getHistory, 
     return div;
   };
 
-  const impactText = (text, extraClass = '', lifeMs = 2200) => {
+  const impactText = (text, extraClass = '', lifeMs = 2600) => {
     const div = spawn(`mlg-impact ${extraClass}`, text);
+    later(() => div.remove(), lifeMs);
+    return div;
+  };
+
+  // Per-letter slam: each character drops in from above the viewport with a
+  // small stagger. The --letters class hands the parent's animation to the
+  // spans (the parent only fades out at the end).
+  const impactLetters = (text, extraClass = '', lifeMs = 4200) => {
+    const div = spawn(`mlg-impact mlg-impact--letters ${extraClass}`);
+    div.style.animationDuration = `${lifeMs}ms`;
+    [...text].forEach((ch, i) => {
+      const s = document.createElement('span');
+      s.className = 'mlg-letter';
+      s.style.animationDelay = `${i * 60}ms`;
+      s.textContent = ch === ' ' ? '\u00a0' : ch;
+      div.appendChild(s);
+    });
     later(() => div.remove(), lifeMs);
   };
 
@@ -87,13 +108,38 @@ export function createMLG({ container, layer, camera, fxGroup, rig, getHistory, 
     }
   };
 
+  const SHAKE_MS = { 1: 400, 2: 550, 3: 700, 4: 900 };
+  const SHAKE_CLASSES = ['mlg-shake-1', 'mlg-shake-2', 'mlg-shake-3', 'mlg-shake-4'];
+
   const shake = (tier = 1) => {
-    const cls = `mlg-shake-${Math.max(1, Math.min(tier, 3))}`;
-    container.classList.remove('mlg-shake-1', 'mlg-shake-2', 'mlg-shake-3');
+    const level = REDUCED ? 1 : Math.max(1, Math.min(tier, 4));
+    const cls = `mlg-shake-${level}`;
+    container.classList.remove(...SHAKE_CLASSES);
     // Force a reflow so re-adding a class restarts the animation.
     void container.offsetWidth;
     container.classList.add(cls);
-    later(() => container.classList.remove(cls), 650);
+    later(() => container.classList.remove(cls), SHAKE_MS[level] + 80);
+    // Big hits also rattle the HUD (banners, scoreboard) - it's a sibling of
+    // the scene container, so it never shakes on its own.
+    if (level >= 3) {
+      const hud = layer.parentElement;
+      hud.classList.remove('mlg-hud-shake');
+      void hud.offsetWidth;
+      hud.classList.add('mlg-hud-shake');
+      later(() => hud.classList.remove('mlg-hud-shake'), 630);
+    }
+  };
+
+  // Continuous low-level rumble; the ID-scoped shake classes outrank its CSS,
+  // so a big shake plays over it and hands off cleanly.
+  const setRumble = (on) => {
+    if (REDUCED) return;
+    container.classList.toggle('mlg-rumble', on);
+  };
+
+  const speedlines = () => {
+    const div = spawn('mlg-speedlines');
+    later(() => div.remove(), 550);
   };
 
   const floatText = (text, x, y, extraClass = '') => {
@@ -103,18 +149,23 @@ export function createMLG({ container, layer, camera, fxGroup, rig, getHistory, 
     later(() => div.remove(), 1600);
   };
 
-  const confetti = (rects = 90, emoji = 40) => {
+  const confetti = (rects = 90, emoji = 40, doritos = 0) => {
+    // Soft cap so stacked celebration waves can't run away with the DOM.
+    if (layer.querySelectorAll('.mlg-confetto').length > 320) return;
     const rect = container.getBoundingClientRect();
-    for (let i = 0; i < rects + emoji; i++) {
-      const isEmoji = i >= rects;
-      const div = spawn(isEmoji ? 'mlg-confetto mlg-confetto-emoji' : 'mlg-confetto');
+    for (let i = 0; i < rects + emoji + doritos; i++) {
+      const isEmoji = i >= rects && i < rects + emoji;
+      const isDorito = i >= rects + emoji;
+      const div = spawn(isDorito
+        ? 'mlg-confetto mlg-confetto-dorito'
+        : isEmoji ? 'mlg-confetto mlg-confetto-emoji' : 'mlg-confetto');
       div.style.left = `${Math.random() * rect.width}px`;
       div.style.animationDuration = `${1.8 + Math.random() * 2.2}s`;
       div.style.animationDelay = `${Math.random() * 0.8}s`;
       if (isEmoji) {
         div.textContent = CONFETTI_EMOJI[i % CONFETTI_EMOJI.length];
         div.style.fontSize = `${18 + Math.random() * 16}px`;
-      } else {
+      } else if (!isDorito) {
         div.style.background = CONFETTI_COLORS[i % CONFETTI_COLORS.length];
         div.style.width = `${8 + Math.random() * 10}px`;
         div.style.height = `${6 + Math.random() * 8}px`;
@@ -130,7 +181,7 @@ export function createMLG({ container, layer, camera, fxGroup, rig, getHistory, 
   let puffTexture = null;
   const puffPool = [];
 
-  const getPuff = () => {
+  const getPuffTexture = () => {
     if (!puffTexture) {
       const canvas = document.createElement('canvas');
       canvas.width = 64;
@@ -144,12 +195,16 @@ export function createMLG({ container, layer, camera, fxGroup, rig, getHistory, 
       pctx.fillRect(0, 0, 64, 64);
       puffTexture = new THREE.CanvasTexture(canvas);
     }
+    return puffTexture;
+  };
+
+  const getPuff = () => {
     for (const sprite of puffPool) {
       if (!sprite.visible) return sprite;
     }
-    if (puffPool.length >= 48) return null;
+    if (puffPool.length >= 160) return null;
     const sprite = new THREE.Sprite(new THREE.SpriteMaterial({
-      map: puffTexture,
+      map: getPuffTexture(),
       transparent: true,
       depthWrite: false,
     }));
@@ -179,21 +234,146 @@ export function createMLG({ container, layer, camera, fxGroup, rig, getHistory, 
     });
   };
 
+  // Additive ember sparks: same radial texture, gravity-driven arcs that die
+  // fast and bright.
+  const sparkPool = [];
+
+  const getSpark = () => {
+    for (const sprite of sparkPool) {
+      if (!sprite.visible) return sprite;
+    }
+    if (sparkPool.length >= 96) return null;
+    const sprite = new THREE.Sprite(new THREE.SpriteMaterial({
+      map: getPuffTexture(),
+      transparent: true,
+      depthWrite: false,
+      blending: THREE.AdditiveBlending,
+    }));
+    sprite.visible = false;
+    fxGroup.add(sprite);
+    sparkPool.push(sprite);
+    return sprite;
+  };
+
+  const spawnSpark = (position, velocity, hue = 0.12) => {
+    const sprite = getSpark();
+    if (!sprite) return;
+    const p0 = position.clone();
+    sprite.position.copy(p0);
+    sprite.material.color.setHSL(hue, 1, 0.7);
+    sprite.visible = true;
+    tween({
+      duration: 0.7,
+      easing: ease.linear,
+      onUpdate: (t) => {
+        const e = t * 0.7;
+        sprite.position.set(
+          p0.x + velocity.x * e,
+          Math.max(p0.y + velocity.y * e - 4.9 * e * e, 0.02),
+          p0.z + velocity.z * e,
+        );
+        const s = 0.28 * (1 - t) + 0.05;
+        sprite.scale.set(s, s, 1);
+        sprite.material.opacity = 1 - t;
+      },
+      onComplete: () => {
+        sprite.visible = false;
+      },
+    });
+  };
+
+  // Emoji sprites in 3D: cached per-char canvas textures, fountain arcs that
+  // land on the board and fade.
+  const emojiTextures = new Map();
+  const emojiPool = [];
+
+  const getEmojiTexture = (char) => {
+    let tex = emojiTextures.get(char);
+    if (!tex) {
+      const canvas = document.createElement('canvas');
+      canvas.width = 128;
+      canvas.height = 128;
+      const ectx = canvas.getContext('2d');
+      ectx.font = '96px serif';
+      ectx.textAlign = 'center';
+      ectx.textBaseline = 'middle';
+      ectx.fillText(char, 64, 64);
+      tex = new THREE.CanvasTexture(canvas);
+      emojiTextures.set(char, tex);
+    }
+    return tex;
+  };
+
+  const getEmojiSprite = (char) => {
+    let sprite = emojiPool.find((s) => !s.visible);
+    if (!sprite) {
+      if (emojiPool.length >= 32) return null;
+      sprite = new THREE.Sprite(new THREE.SpriteMaterial({
+        transparent: true,
+        depthWrite: false,
+      }));
+      sprite.visible = false;
+      fxGroup.add(sprite);
+      emojiPool.push(sprite);
+    }
+    sprite.material.map = getEmojiTexture(char);
+    return sprite;
+  };
+
+  const emojiBurst = (row, col, chars, count = 10) => {
+    const origin = gridToWorld(row, col);
+    for (let i = 0; i < count; i++) {
+      const sprite = getEmojiSprite(chars[i % chars.length]);
+      if (!sprite) return;
+      const angle = Math.random() * Math.PI * 2;
+      const vh = 1 + Math.random() * 1.5;
+      const vx = Math.cos(angle) * vh;
+      const vz = Math.sin(angle) * vh;
+      const vy = 3 + Math.random() * 2;
+      const spin = (Math.random() - 0.5) * 6;
+      const p0 = new THREE.Vector3(origin.x, PIECE_HEIGHT, origin.z);
+      sprite.position.copy(p0);
+      sprite.material.rotation = 0;
+      sprite.material.opacity = 1;
+      sprite.scale.set(0.7, 0.7, 1);
+      sprite.visible = true;
+      tween({
+        duration: 1.3,
+        easing: ease.linear,
+        onUpdate: (t) => {
+          const e = t * 1.3;
+          sprite.position.set(
+            p0.x + vx * e,
+            Math.max(p0.y + vy * e - 4.5 * e * e, 0.05),
+            p0.z + vz * e,
+          );
+          sprite.material.rotation = spin * e;
+          sprite.material.opacity = t > 0.7 ? 1 - (t - 0.7) / 0.3 : 1;
+        },
+        onComplete: () => {
+          sprite.visible = false;
+        },
+      });
+    }
+  };
+
   // SSB-style KO launch: brief hitstop at the moment of impact, then the
   // captured piece rockets into the stratosphere at high speed with a rainbow
   // trail, spinning wildly, and pops an off-screen KO star. The returned
   // promise resolves at 0.3s (matching the fadeSink pipeline slot) while the
   // visual continues in the background.
   const launchPiece = (mesh, record) => {
+    const hype = hypeOf(getHistory());
     const [tr, tc] = record.move.to;
     const start = gridToWorld(tr, tc);
     const startY = mesh.position.y;
-    // Fly outward, away from the board center, and far UP.
+    // Fly outward, away from the board center, and far UP - farther, higher
+    // and spinnier as the hype climbs.
     const dir = Math.atan2(start.z, start.x) + (Math.random() - 0.5) * 1.0;
-    const distance = 10 + Math.random() * 4;
-    const height = 16 + Math.random() * 5;
+    const distance = 11 + hype * 2 + Math.random() * 4;
+    const height = 16 + hype * 5 + Math.random() * 5;
     const axis = new THREE.Vector3(Math.random() - 0.5, Math.random() - 0.5, Math.random() - 0.5).normalize();
-    const spins = (8 + Math.random() * 4) * Math.PI * 2;
+    const spins = (10 + hype * 2 + Math.random() * 4) * Math.PI * 2;
     const hueBase = Math.random();
 
     const cleanup = () => {
@@ -235,6 +415,25 @@ export function createMLG({ container, layer, camera, fxGroup, rig, getHistory, 
       }
     };
 
+    // Hitstop juggle: on big hits the victim pops up and hangs in the air
+    // during the freeze before the blast connects.
+    if (hype >= 2) {
+      const juggle = track(null, () => {
+        mesh.position.y = startY;
+      });
+      juggle.entry = tween({
+        duration: 0.2,
+        easing: ease.linear,
+        onUpdate: (t) => {
+          mesh.position.y = startY + 0.9 * Math.sin(t * Math.PI);
+        },
+        onComplete: () => {
+          flights.delete(juggle);
+          mesh.position.y = startY;
+        },
+      });
+    }
+
     // Hitstop: the victim freezes on impact while the shake lands, then gets
     // blasted. Timed so launch begins as the attacker's slide arrives.
     const holdId = setTimeout(() => {
@@ -253,7 +452,7 @@ export function createMLG({ container, layer, camera, fxGroup, rig, getHistory, 
           mesh.setRotationFromAxisAngle(axis, spins * t);
           const shrink = 1 - t * 0.45;
           mesh.scale.set(shrink, shrink, shrink);
-          if (t - lastPuffT > 0.02) {
+          if (t - lastPuffT > 0.012) {
             lastPuffT = t;
             puffCount++;
             spawnPuff(mesh.position, (hueBase + puffCount * 0.07) % 1);
@@ -280,19 +479,20 @@ export function createMLG({ container, layer, camera, fxGroup, rig, getHistory, 
   // Shards + sparks + shockwave exploding from the capture square.
   const shardGeometry = new THREE.BoxGeometry(0.07, 0.07, 0.07);
   const bigShardGeometry = new THREE.BoxGeometry(0.13, 0.13, 0.13);
-  const shardBurst = (row, col, color) => {
+  const shardBurst = (row, col, color, hype = 1) => {
     const group = new THREE.Group();
     const material = new THREE.MeshBasicMaterial({ color: color === 'red' ? '#ff6b5e' : '#c9b28a' });
     const origin = gridToWorld(row, col);
     const shards = [];
-    for (let i = 0; i < 24; i++) {
+    const count = 28 + hype * 14;
+    for (let i = 0; i < count; i++) {
       const shard = new THREE.Mesh(i % 3 === 0 ? bigShardGeometry : shardGeometry, material);
-      const angle = (i / 24) * Math.PI * 2 + Math.random() * 0.4;
+      const angle = (i / count) * Math.PI * 2 + Math.random() * 0.4;
       shards.push({
         shard,
-        vx: Math.cos(angle) * (1.4 + Math.random() * 2.2),
-        vz: Math.sin(angle) * (1.4 + Math.random() * 2.2),
-        vy: 2.4 + Math.random() * 2.6,
+        vx: Math.cos(angle) * (1.7 + Math.random() * 2.8),
+        vz: Math.sin(angle) * (1.7 + Math.random() * 2.8),
+        vy: 2.8 + Math.random() * 3.4,
       });
       group.add(shard);
     }
@@ -300,7 +500,7 @@ export function createMLG({ container, layer, camera, fxGroup, rig, getHistory, 
     fxGroup.add(group);
 
     // Bright spark puffs radiating with the debris.
-    for (let i = 0; i < 8; i++) {
+    for (let i = 0; i < 10 + hype * 5; i++) {
       const sparkPos = new THREE.Vector3(
         origin.x + (Math.random() - 0.5) * 1.2,
         PIECE_HEIGHT + Math.random() * 0.8,
@@ -308,7 +508,17 @@ export function createMLG({ container, layer, camera, fxGroup, rig, getHistory, 
       );
       spawnPuff(sparkPos, 0.12 + Math.random() * 0.06, 0.55);
     }
+    // Additive embers flying farther than the debris.
+    for (let i = 0; i < 12 + hype * 8; i++) {
+      const angle = Math.random() * Math.PI * 2;
+      const speed = 1.5 + Math.random() * 2.5;
+      spawnSpark(
+        new THREE.Vector3(origin.x, PIECE_HEIGHT + 0.1, origin.z),
+        new THREE.Vector3(Math.cos(angle) * speed, 2 + Math.random() * 3, Math.sin(angle) * speed),
+      );
+    }
     shockwave(row, col, '#ffffff');
+    if (hype >= 2) later(() => expandRing(row, col, '#ffe000', 3.0, 0.7), 120);
 
     const cleanup = () => group.removeFromParent();
     const flight = track(null, cleanup);
@@ -360,6 +570,24 @@ export function createMLG({ container, layer, camera, fxGroup, rig, getHistory, 
   };
   const shockwave = (row, col, color) => expandRing(row, col, color, 2.0, 0.5);
 
+  // Squash-stretch pop on the attacking piece as its capture lands.
+  const slamAttacker = (mesh) => {
+    if (!mesh) return;
+    const flight = track(null, () => mesh.scale.set(1, 1, 1));
+    flight.entry = tween({
+      duration: 0.28,
+      easing: ease.linear,
+      onUpdate: (t) => {
+        const k = Math.sin(t * Math.PI) * 0.3;
+        mesh.scale.set(1 + k, 1 - k * 0.85, 1 + k);
+      },
+      onComplete: () => {
+        flights.delete(flight);
+        mesh.scale.set(1, 1, 1);
+      },
+    });
+  };
+
   // Height above rest at time t for an upward impulse v0, with gravity and
   // dampened rebounds - a closed-form piecewise bounce.
   const bounceY = (v0, t, g = 22, restitution = 0.45) => {
@@ -396,7 +624,7 @@ export function createMLG({ container, layer, camera, fxGroup, rig, getHistory, 
       const falloff = 1 / (1 + dist * 0.35);
       // v0 ~3.3 gives a satisfying ~0.25-unit hop with a 0.3s first arc;
       // capped so the max-intensity game-over rattle stays plausible.
-      const v0 = Math.min(intensity * falloff * (0.75 + Math.random() * 0.5) * 3.4, 4.5);
+      const v0 = Math.min(intensity * falloff * (0.75 + Math.random() * 0.5) * 3.4, 6.0);
       rattled.push({
         m,
         delay: dist * 0.035,
@@ -520,6 +748,119 @@ export function createMLG({ container, layer, camera, fxGroup, rig, getHistory, 
     }).join('');
   };
 
+  // Up to four stacked event banners: the headliner center-stage (mega /
+  // per-letter treatment as hype climbs), the rest smaller, lower, and
+  // staggered. All through later() so undo mid-cascade cancels cleanly.
+  const queueBanners = (banners, hype) => {
+    banners.slice(0, 4).forEach((e, i) => {
+      later(() => {
+        if (i === 0) {
+          if (hype >= 3) impactLetters(e.label, 'mlg-impact--mega', 3000);
+          else if (hype >= 2) impactText(e.label, 'mlg-impact--mega', 2600);
+          else impactText(e.label);
+          if (e.say) say(e.say);
+        } else {
+          const div = spawn('mlg-impact mlg-impact--minor', e.label);
+          div.style.top = `${52 + i * 8}%`;
+          later(() => div.remove(), 1800);
+        }
+      }, i * 550);
+    });
+  };
+
+  // Checkmate circus: a scripted ~7s timeline. Every beat goes through
+  // later() so undo mid-sequence tears the whole thing down.
+  const runCheckmateSequence = (status, generalPos) => {
+    const last = getHistory().at(-1);
+    const mateSq = last?.move.to ?? generalPos ?? [4, 4];
+
+    const flash = spawn('mlg-flash-white');
+    later(() => flash.remove(), 300);
+    playBassDrop(0.9);
+    shake(4);
+    rattlePieces(
+      mateSq[0],
+      mateSq[1],
+      4.2,
+      last ? [last.piece.id, last.captured?.id].filter(Boolean) : [],
+    );
+    shardBurst(mateSq[0], mateSq[1], status.winner === 'red' ? 'black' : 'red', 3);
+
+    later(() => {
+      const badge = spawn('mlg-replay-badge');
+      badge.innerHTML = '<i>●</i> REC&nbsp;&nbsp;INSTANT REPLAY';
+      later(() => badge.remove(), 2250);
+    }, 150);
+    later(() => {
+      if (REDUCED) {
+        rig.punchFov(6);
+      } else {
+        rig.crashZoom(18, 0.7);
+        speedlines();
+      }
+    }, 300);
+    later(() => {
+      playWobbleDrop(4.5);
+      setRumble(true);
+    }, 500);
+    later(() => {
+      playMegaAirhorn();
+      say('game over. get rekt.');
+    }, 800);
+    later(() => impactLetters('GG', 'mlg-gg', 4400), 900);
+    later(() => {
+      confetti(150, 60, 30);
+      if (generalPos) emojiBurst(generalPos[0], generalPos[1], ['🏆', '👑', '💯'], 14);
+    }, 1100);
+    later(() => rig.victorySpin(8), 1700);
+    later(() => {
+      // Sits below the giant GG, which is still on screen.
+      impactText('GET REKT', 'mlg-impact--mega', 2400).style.top = '60%';
+    }, 2300);
+    later(() => {
+      impactText('NOT EVEN CLOSE BABY', 'mlg-impact--minor', 1800);
+      confetti(120, 50, 20);
+    }, 2900);
+    if (generalPos) later(() => dropSunglasses(generalPos[0], generalPos[1]), 3200);
+    later(() => {
+      const scores = computeScores(getHistory());
+      const div = spawn(
+        'mlg-impact mlg-impact--minor',
+        `${status.winner.toUpperCase()} WINS · ${scores[status.winner]} PTS`,
+      );
+      div.style.top = '64%';
+      later(() => div.remove(), 2200);
+    }, 3600);
+    later(() => {
+      rattlePieces(mateSq[0], mateSq[1], 2.4, []);
+      playCoin();
+      later(() => playCoin(), 120);
+      later(() => playCoin(), 240);
+    }, 4300);
+    later(() => confetti(90, 70, 0), 4800);
+    later(() => setRumble(false), 5200);
+  };
+
+  const runStalemateSequence = (generalPos) => {
+    const last = getHistory().at(-1);
+    if (last) {
+      rattlePieces(
+        last.move.to[0],
+        last.move.to[1],
+        3.2,
+        [last.piece.id, last.captured?.id].filter(Boolean),
+      );
+    }
+    playRecordScratch();
+    say('bruh');
+    impactLetters('BRUH.', 'mlg-gg', 4000);
+    confetti(60, 30, 10);
+    later(() => playSadTrombone(), 900);
+    later(() => impactText('NO MOVES. NO HOPE.', 'mlg-impact--minor', 2000), 1600);
+    later(() => rig.victorySpin(6), 400);
+    if (generalPos) later(() => dropSunglasses(generalPos[0], generalPos[1]), 1200);
+  };
+
   return {
     get enabled() {
       return enabled;
@@ -532,8 +873,8 @@ export function createMLG({ container, layer, camera, fxGroup, rig, getHistory, 
       }
       renderBoards();
       if (splash) {
-        impactText('MLG MODE ACTIVATED', 'mlg-impact--activate', 1800);
-        playAirhorn({ dur: 0.5 });
+        impactText('MLG MODE ACTIVATED', 'mlg-impact--activate', 2400);
+        playAirhornRiff();
         say('M L G mode activated');
       }
     },
@@ -553,21 +894,17 @@ export function createMLG({ container, layer, camera, fxGroup, rig, getHistory, 
       const history = getHistory();
       const events = detectEvents(history);
       const streak = record.captured ? computeStreaks(history)[record.piece.color] : 0;
+      const hype = hypeOf(history);
       const [tr, tc] = record.move.to;
 
       if (record.captured) {
         hitmarkerAt(tr, tc);
         playHitmarker();
-        shardBurst(tr, tc, record.captured.color);
+        shardBurst(tr, tc, record.captured.color, hype);
+        slamAttacker(getMeshes?.()?.get(record.piece.id));
 
-        const big = record.captured.type === 'R' || record.captured.type === 'C';
-        shake(streak >= 4 ? 3 : big || streak >= 2 ? 2 : 1);
-        rattlePieces(
-          tr,
-          tc,
-          streak >= 4 ? 2.6 : big || streak >= 2 ? 2.0 : 1.4,
-          [record.piece.id, record.captured.id],
-        );
+        shake(hype);
+        rattlePieces(tr, tc, 1.7 + hype * 0.55, [record.piece.id, record.captured.id]);
 
         const points = capturePoints(history);
         const { x, y } = screenPosOf(tr, tc);
@@ -580,12 +917,41 @@ export function createMLG({ container, layer, camera, fxGroup, rig, getHistory, 
           const flash = spawn('mlg-flash-red');
           later(() => flash.remove(), 600);
         }
-        // Audio caps: max one airhorn and one special stinger per move.
-        if (big || streak >= 3) playAirhorn();
+        // Audio caps: max one airhorn call and one special stinger per move.
+        if (hype >= 3) {
+          playAirhornRiff();
+          playBassDrop(0.6);
+        } else if (hype >= 2) {
+          playAirhorn();
+        } else if (Math.random() < 0.25) {
+          playAirhorn({ dur: 0.35, pitch: 1.1 });
+        }
         const top = events[0];
         if (top?.type === 'STREAK') playStreakStinger(Math.min(streak, 7));
         else if (top?.type === 'HUMILIATION') playRecordScratch();
-        rig.punchFov(Math.min(big ? 11 : 5 + 2 * streak, 14));
+
+        // Camera: fov punch -> dutch roll -> full crash zoom as hype climbs.
+        if (REDUCED) {
+          rig.punchFov(6);
+        } else if (hype >= 3) {
+          rig.crashZoom(17, 0.6);
+          rig.punchRoll(5, 0.6);
+          speedlines();
+        } else if (hype >= 2) {
+          rig.punchFov(12);
+          rig.punchRoll(3, 0.45);
+        } else {
+          rig.punchFov(7);
+        }
+
+        if (hype >= 2) later(() => emojiBurst(tr, tc, ['🔥', '💯'], 8 + hype * 4), 350);
+        if (hype >= 3 && !status.over) {
+          later(() => confetti(40, 16, 8), 500);
+          if (streak >= 6) {
+            setRumble(true);
+            later(() => setRumble(false), 1200);
+          }
+        }
         renderBoards();
       }
 
@@ -597,18 +963,10 @@ export function createMLG({ container, layer, camera, fxGroup, rig, getHistory, 
         floatText('+100 XP', x, y - 46, 'mlg-float--xp');
       }
 
-      // Banner queue: top event center-stage, runner-up smaller and delayed,
-      // the rest live in the kill feed only. Suppressed entirely at game over
-      // (the GG/BRUH celebration owns the screen).
+      // Banner cascade: suppressed entirely at game over (the checkmate
+      // sequence owns the screen).
       if (!status.over) {
-        const banners = events.filter((e) => e.label && e.type !== 'LEVEL_UP');
-        if (banners[0]) {
-          impactText(banners[0].label);
-          if (banners[0].say) say(banners[0].say);
-        }
-        if (banners[1]) {
-          later(() => impactText(banners[1].label, 'mlg-impact--minor', 1600), 700);
-        }
+        queueBanners(events.filter((e) => e.label && e.type !== 'LEVEL_UP'), hype);
       }
     },
     onCheck() {
@@ -617,35 +975,12 @@ export function createMLG({ container, layer, camera, fxGroup, rig, getHistory, 
       later(() => vignette.remove(), 1000);
       const warning = spawn('mlg-warning', '⚠ WARNING ⚠');
       later(() => warning.remove(), 1300);
+      playAirhorn({ dur: 0.35, pitch: 0.85 });
     },
     onGameOver(status, generalPos) {
       if (!enabled) return;
-      const mate = status.reason === 'checkmate';
-      const last = getHistory().at(-1);
-      if (last) {
-        rattlePieces(
-          last.move.to[0],
-          last.move.to[1],
-          3.2,
-          [last.piece.id, last.captured?.id].filter(Boolean),
-        );
-      }
-      if (mate) {
-        playWobbleDrop();
-        playTripleAirhorn();
-        say('game over. get rekt.');
-        impactText('GG', 'mlg-gg', 3600);
-        later(() => impactText('GET REKT', '', 2000), 1600);
-        confetti(130, 60);
-      } else {
-        playRecordScratch();
-        say('bruh');
-        impactText('BRUH.', 'mlg-gg', 3600);
-        later(() => impactText('NO MOVES. NO HOPE.', 'mlg-impact--minor', 2000), 1600);
-        confetti(60, 30);
-      }
-      later(() => rig.victorySpin(6), 400);
-      if (generalPos) later(() => dropSunglasses(generalPos[0], generalPos[1]), 1200);
+      if (status.reason === 'checkmate') runCheckmateSequence(status, generalPos);
+      else runStalemateSequence(generalPos);
       renderBoards();
     },
     onNewGame() {
@@ -662,10 +997,14 @@ export function createMLG({ container, layer, camera, fxGroup, rig, getHistory, 
       flights.clear();
       activeRattle = null;
       for (const sprite of puffPool) sprite.visible = false;
+      for (const sprite of sparkPool) sprite.visible = false;
+      for (const sprite of emojiPool) sprite.visible = false;
       layer.innerHTML = '';
-      container.classList.remove('mlg-shake-1', 'mlg-shake-2', 'mlg-shake-3');
+      container.classList.remove(...SHAKE_CLASSES, 'mlg-rumble');
+      layer.parentElement.classList.remove('mlg-hud-shake');
       removeSunglasses();
       rig.cancelSpin();
+      rig.cancelFx();
       setTimeScale(1);
       stopSpeech();
       if (enabled) renderBoards();

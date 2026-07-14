@@ -1,8 +1,9 @@
 ﻿// End-to-end verification: drives the running dev server through Edge.
 import puppeteer from 'puppeteer-core';
 
-const SHOT_DIR = 'C:/Users/y_w_u/AppData/Local/Temp/claude/c--Users-y-w-u-Code-xiangqi/05e90332-ed0a-43e0-9863-773a777a16c1/scratchpad';
+const SHOT_DIR = 'C:/Users/y_w_u/AppData/Local/Temp/claude/c--Users-y-w-u-Code-xiangqi/53a340f6-06ce-4c7e-a080-9bab8302fb2c/scratchpad';
 const EDGE = 'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe';
+const CHROME = 'C:/Program Files/Google/Chrome/Application/chrome.exe';
 
 const results = [];
 const check = (label, cond) => {
@@ -12,11 +13,18 @@ const check = (label, cond) => {
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
-const browser = await puppeteer.launch({
-  executablePath: EDGE,
+const launchWith = (executablePath) => puppeteer.launch({
+  executablePath,
   headless: 'new',
   args: ['--window-size=1400,900', '--disable-gpu'],
   defaultViewport: { width: 1400, height: 900 },
+});
+
+// Edge's headless mode breaks on some versions (the launcher exits
+// immediately); fall back to Chrome.
+const browser = await launchWith(EDGE).catch((err) => {
+  console.log(`Edge failed to launch (${err.message.split('\n')[0]}), trying Chrome`);
+  return launchWith(CHROME);
 });
 const page = await browser.newPage();
 
@@ -175,12 +183,15 @@ const mlgState = await page.evaluate(() => ({
   captured: window.game.history.at(-1)?.captured?.type,
   feedRows: document.querySelectorAll('.mlg-feed-row').length,
   scoreText: document.querySelector('.mlg-scoreboard')?.textContent ?? '',
+  megaBanner: Boolean(document.querySelector('.mlg-impact--mega')),
 }));
 await page.screenshot({ path: `${SHOT_DIR}/verify-6-mlg-capture.png` });
 check('MLG capture happened (horse)', mlgState.captured === 'H');
 check('MLG overlay elements spawned', mlgState.layerChildren > 0);
 check('MLG kill feed has entries', mlgState.feedRows >= 1);
 check('MLG score counts the horse (300)', mlgState.scoreText.includes('300'));
+// FIRST BLOOD is hype 3 -> the headliner banner gets the full-width mega bar.
+check('MLG mega banner on hype-3 capture', mlgState.megaBanner);
 
 // Rattle settles: every piece back at resting height.
 await sleep(1500);
@@ -210,7 +221,7 @@ await sleep(400);
 await clickGrid(7, 1);
 await sleep(300);
 await clickGrid(9, 1);
-await sleep(2400); // mate move runs in MLG slow-mo (~1.1s real) before the celebration
+await sleep(3400); // slow-mo mate move (~1.1s real), then GG lands at +0.9s, confetti at +1.1s
 const state6 = await page.evaluate(() => ({
   over: window.game.status.over,
   winner: window.game.status.winner,
@@ -219,6 +230,7 @@ const state6 = await page.evaluate(() => ({
   ggBanner: document.querySelector('.mlg-gg')?.textContent ?? '',
   confetti: document.querySelectorAll('.mlg-confetto').length,
   emojiConfetti: document.querySelectorAll('.mlg-confetto-emoji').length,
+  doritoConfetti: document.querySelectorAll('.mlg-confetto-dorito').length,
 }));
 check('checkmate detected', state6.over && state6.reason === 'checkmate');
 check('red wins', state6.winner === 'red');
@@ -226,9 +238,10 @@ check('overlay delayed during celebration', state6.overlayHidden);
 check('MLG GG banner shown', state6.ggBanner === 'GG');
 check('MLG confetti raining', state6.confetti > 50);
 check('MLG emoji mixed into confetti', state6.emojiConfetti > 10);
+check('MLG doritos mixed into confetti', state6.doritoConfetti > 5);
 await page.screenshot({ path: `${SHOT_DIR}/verify-7-checkmate.png` });
-// The win banner slides up at the bottom after the GG banner finishes.
-await sleep(3200);
+// The win banner slides up at the bottom after the ~7s celebration.
+await sleep(4500);
 const state6b = await page.evaluate(() => ({
   overlayVisible: !document.getElementById('gameover-overlay').hidden,
   overlayText: document.getElementById('gameover-text').textContent,

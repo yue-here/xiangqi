@@ -13,12 +13,26 @@ export function createCameraRig(camera) {
   let angle = 0;
   let side = RED;
   let spinEntry = null;
+  let roll = 0;
+  let rollSign = 1;
+  // Captured once: FX always restore to this, so overlapping punches can't
+  // save a mid-punch fov as their baseline.
+  const baseFov = camera.fov;
+  const fxEntries = new Set();
 
   const apply = () => {
     camera.position.set(DISTANCE * Math.sin(angle), HEIGHT, DISTANCE * Math.cos(angle));
     camera.lookAt(0, LOOK_Y, 0);
+    // lookAt resets orientation every call, so the dutch-angle roll must be
+    // reapplied after it.
+    if (roll) camera.rotateZ(roll);
   };
   apply();
+
+  const restoreFov = () => {
+    camera.fov = baseFov;
+    camera.updateProjectionMatrix();
+  };
 
   return {
     get side() {
@@ -46,20 +60,55 @@ export function createCameraRig(camera) {
     },
     // Temporary fov punch for MLG zoom effects.
     punchFov(delta, duration = 0.3) {
-      const base = camera.fov;
-      return tweenPromise({
+      const entry = tween({
         duration,
         easing: ease.outQuad,
         onUpdate: (t) => {
-          const k = Math.sin(t * Math.PI); // in and back out
-          camera.fov = base - delta * k;
+          camera.fov = baseFov - delta * Math.sin(t * Math.PI); // in and back out
           camera.updateProjectionMatrix();
         },
         onComplete: () => {
-          camera.fov = base;
-          camera.updateProjectionMatrix();
+          fxEntries.delete(entry);
+          restoreFov();
         },
       });
+      fxEntries.add(entry);
+    },
+    // Crash zoom: snap in fast, hold, ease back out - for big captures.
+    crashZoom(delta = 16, duration = 0.55) {
+      const entry = tween({
+        duration,
+        easing: ease.linear,
+        onUpdate: (t) => {
+          const k = t < 0.18 ? t / 0.18 : t < 0.45 ? 1 : 1 - (t - 0.45) / 0.55;
+          camera.fov = baseFov - delta * k;
+          camera.updateProjectionMatrix();
+        },
+        onComplete: () => {
+          fxEntries.delete(entry);
+          restoreFov();
+        },
+      });
+      fxEntries.add(entry);
+    },
+    // Dutch-angle punch, alternating tilt direction per call.
+    punchRoll(deg = 4, duration = 0.5) {
+      rollSign = -rollSign;
+      const rad = (deg * Math.PI / 180) * rollSign;
+      const entry = tween({
+        duration,
+        easing: ease.linear,
+        onUpdate: (t) => {
+          roll = rad * Math.sin(t * Math.PI);
+          apply();
+        },
+        onComplete: () => {
+          fxEntries.delete(entry);
+          roll = 0;
+          apply();
+        },
+      });
+      fxEntries.add(entry);
     },
     // Slow 360 orbit for the MLG victory celebration. Cancellable: undo/new
     // game must snap the camera back to its side.
@@ -86,6 +135,14 @@ export function createCameraRig(camera) {
       cancelTween(spinEntry);
       spinEntry = null;
       angle = side === RED ? 0 : Math.PI;
+      apply();
+    },
+    // Cancel every fov/roll effect and restore the neutral camera.
+    cancelFx() {
+      for (const entry of fxEntries) cancelTween(entry);
+      fxEntries.clear();
+      roll = 0;
+      restoreFov();
       apply();
     },
   };

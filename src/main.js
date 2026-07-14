@@ -67,7 +67,7 @@ function scheduleGameOver() {
   clearTimeout(overlayTimer);
   overlayTimer = setTimeout(
     () => hud.showGameOver(game.status, { mlg: settings.mlg }),
-    mlg.enabled ? 4000 : 800,
+    mlg.enabled ? 6800 : 800,
   );
 }
 
@@ -379,6 +379,10 @@ requestAnimationFrame(frame);
 if (import.meta.env.DEV) {
   window.game = game;
   window.mlg = mlg;
+  // Console audition loop for tuning the horn by ear:
+  // mlgAudio.playAirhornRiff(), .playMegaAirhorn(), .playBassDrop(), ...
+  window.mlgAudio = await import('./fx/mlg-audio.js');
+  window.sfx = sfx;
   window.debugPieceYs = () => [...meshes.values()]
     .filter((m) => m.visible)
     .map((m) => Math.round(m.position.y * 1000) / 1000);
