@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Xiangqi</title>
+</head>
+<body>
+  <div id="app">
+    <div id="scene-container"></div>
+    <div id="hud">
+      <div id="top-bar">
+        <div id="turn-pill">Red to move</div>
+        <div id="check-badge" hidden>CHECK</div>
+      </div>
+      <aside id="history-panel">
+        <h2>Moves</h2>
+        <ol id="move-list"></ol>
+      </aside>
+      <div id="controls">
+        <button id="btn-new">New Game</button>
+        <button id="btn-undo">Undo</button>
+        <label class="toggle"><input type="checkbox" id="chk-flip"> Auto-flip</label>
+        <label class="toggle"><input type="checkbox" id="chk-symbols"> Symbols</label>
+        <label class="toggle"><input type="checkbox" id="chk-sound" checked> Sound</label>
+        <label class="toggle"><input type="checkbox" id="chk-mlg"> MLG mode 😎</label>
+      </div>
+      <div id="modal" hidden>
+        <div id="modal-box">
+          <p>Start a new game? The current game will be lost.</p>
+          <div id="modal-buttons">
+            <button id="btn-modal-yes">New Game</button>
+            <button id="btn-modal-no">Cancel</button>
+          </div>
+        </div>
+      </div>
+      <div id="gameover-overlay" hidden>
+        <div id="gameover-box">
+          <h1 id="gameover-text"></h1>
+          <button id="btn-gameover-new">New Game</button>
+        </div>
+      </div>
+      <div id="mlg-layer"></div>
+    </div>
+  </div>
+  <script type="module" src="/src/main.js"></script>
+</body>
+</html>
