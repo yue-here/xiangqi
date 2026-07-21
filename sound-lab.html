@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Sound Lab - Xiangqi MLG audio</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 24px;
+      background: #14161c;
+      color: #e8e8ee;
+      font: 14px/1.5 system-ui, sans-serif;
+    }
+    h1 { font-size: 18px; margin: 0 0 4px; }
+    .sub { color: #9098a8; margin: 0 0 20px; }
+    section {
+      background: #1d2028;
+      border: 1px solid #2c3040;
+      border-radius: 10px;
+      padding: 16px 20px;
+      margin-bottom: 16px;
+      max-width: 640px;
+    }
+    h2 { font-size: 13px; text-transform: uppercase; letter-spacing: 0.04em; color: #9098a8; margin: 0 0 12px; }
+    .row { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; flex-wrap: wrap; }
+    button {
+      background: #2d6cdf;
+      color: #fff;
+      border: none;
+      border-radius: 6px;
+      padding: 8px 14px;
+      cursor: pointer;
+      font-size: 13px;
+    }
+    button:hover { background: #3a7bf0; }
+    button.secondary { background: #333846; }
+    button.secondary:hover { background: #40465a; }
+    label.field { display: flex; align-items: center; gap: 8px; }
+    input[type=range] { width: 200px; }
+    select {
+      background: #0e1015;
+      color: #e8e8ee;
+      border: 1px solid #333846;
+      border-radius: 6px;
+      padding: 7px 10px;
+      font-size: 13px;
+      min-width: 320px;
+    }
+    code { background: #0e1015; padding: 1px 5px; border-radius: 4px; }
+    #status {
+      display: inline-block;
+      padding: 3px 10px;
+      border-radius: 999px;
+      font-weight: 600;
+      font-size: 12px;
+    }
+    #status.sample { background: #1e4d2b; color: #7ee8a0; }
+    #status.loading { background: #4d451e; color: #e8d67e; }
+    #status.idle { background: #4d1e1e; color: #e87e7e; }
+  </style>
+</head>
+<body>
+  <h1>🎺 Sound Lab</h1>
+  <p class="sub">
+    Dev-only page for auditioning the MLG airhorn in isolation, outside a full game.
+    Not part of the production build - only reachable via <code>npm run dev</code>.
+  </p>
+
+  <section>
+    <h2>Airhorn sample</h2>
+    <div class="row">
+      <select id="variant"></select>
+    </div>
+    <div class="row">
+      <span id="status" class="idle">idle</span>
+      <span id="statusNote" class="sub" style="margin:0;"></span>
+    </div>
+  </section>
+
+  <section>
+    <h2>Exact in-game presets</h2>
+    <p class="sub" style="margin:-4px 0 12px;">Uses whichever sample is selected above.</p>
+    <div class="row">
+      <button data-preset="check">Check (0.65s, pitch 0.85)</button>
+      <button data-preset="captureHype2">Capture, hype 2+ (1.0s)</button>
+      <button data-preset="captureOccasional">Capture, occasional (0.65s, pitch 1.1)</button>
+    </div>
+    <div class="row">
+      <button data-preset="riff">Riff (hype 3+ capture)</button>
+      <button data-preset="triple">Triple</button>
+      <button data-preset="mega">Mega (checkmate)</button>
+    </div>
+  </section>
+
+  <section>
+    <h2>Custom blast</h2>
+    <div class="row">
+      <label class="field">dur <input id="dur" type="range" min="0.05" max="2.6" step="0.01" value="1.0"> <span id="durVal"></span>s</label>
+    </div>
+    <div class="row">
+      <label class="field">pitch <input id="pitch" type="range" min="0.5" max="1.5" step="0.01" value="1"> <span id="pitchVal"></span></label>
+    </div>
+    <div class="row">
+      <label class="field"><input id="echo" type="checkbox"> echo</label>
+      <button data-custom="play">Play custom blast</button>
+    </div>
+  </section>
+
+  <section>
+    <h2>Other MLG stingers</h2>
+    <div class="row">
+      <button class="secondary" data-other="bassDrop">Bass drop</button>
+      <button class="secondary" data-other="wobbleDrop">Wobble drop</button>
+      <button class="secondary" data-other="recordScratch">Record scratch</button>
+      <button class="secondary" data-other="sadTrombone">Sad trombone</button>
+      <button class="secondary" data-other="hitmarker">Hitmarker</button>
+      <button class="secondary" data-other="coin">Coin</button>
+      <button class="secondary" data-other="fart">Fart (undo)</button>
+      <button class="secondary" data-other="koStar">KO star</button>
+    </div>
+  </section>
+
+  <script type="module" src="/src/fx/sound-lab.js"></script>
+</body>
+</html>

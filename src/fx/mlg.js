@@ -1,12 +1,13 @@
 // Optional MLG mode: every effect here no-ops unless enabled. Visuals are
 // DOM/CSS overlays plus Three.js meshes in fxGroup; audio lives in
-// mlg-audio.js. No external assets. All streak/score/feed state is recomputed
-// from the game history, so undo/reload resync is free.
+// mlg-audio.js - synthesized, except the airhorn, which plays a real CC0
+// sample (see mlg-audio.js for why). All streak/score/feed state is
+// recomputed from the game history, so undo/reload resync is free.
 import * as THREE from 'three';
 import {
   playAirhorn, playAirhornRiff, playMegaAirhorn, playBassDrop, playSadTrombone,
-  playHitmarker, playStreakStinger, playCoin, playRecordScratch, playWobbleDrop,
-  playWhoosh, playKoStar, say, stopSpeech,
+  playHitmarker, playStreakStinger, playCoin, playCoinBurst, playRecordScratch, playWobbleDrop,
+  playWhoosh, playKoStar, playFart, say, stopSpeech,
 } from './mlg-audio.js';
 import { detectEvents, computeStreaks, computeScores, capturePoints, hypeOf } from './mlg-events.js';
 import { tween, tweenPromise, cancelTween, setTimeScale, ease } from '../scene/tween.js';
@@ -50,22 +51,26 @@ export function createMLG({ container, layer, camera, fxGroup, rig, getHistory, 
     return div;
   };
 
-  const impactText = (text, extraClass = '', lifeMs = 2600) => {
+  // --mlg-life drives the CSS animation duration so removal and fade stay in
+  // sync (inline animation-duration would clobber --mega's infinite hue cycle).
+  const impactText = (text, extraClass = '', lifeMs = 1600) => {
     const div = spawn(`mlg-impact ${extraClass}`, text);
+    div.style.setProperty('--mlg-life', `${lifeMs}ms`);
     later(() => div.remove(), lifeMs);
     return div;
   };
 
   // Per-letter slam: each character drops in from above the viewport with a
   // small stagger. The --letters class hands the parent's animation to the
-  // spans (the parent only fades out at the end).
-  const impactLetters = (text, extraClass = '', lifeMs = 4200) => {
+  // spans (the parent only fades out at the end). The stagger is capped so
+  // long phrases still land every letter before the fade begins.
+  const impactLetters = (text, extraClass = '', lifeMs = 2600) => {
     const div = spawn(`mlg-impact mlg-impact--letters ${extraClass}`);
-    div.style.animationDuration = `${lifeMs}ms`;
+    div.style.setProperty('--mlg-life', `${lifeMs}ms`);
     [...text].forEach((ch, i) => {
       const s = document.createElement('span');
       s.className = 'mlg-letter';
-      s.style.animationDelay = `${i * 60}ms`;
+      s.style.animationDelay = `${Math.min(i * 45, 700)}ms`;
       s.textContent = ch === ' ' ? '\u00a0' : ch;
       div.appendChild(s);
     });
@@ -755,16 +760,15 @@ export function createMLG({ container, layer, camera, fxGroup, rig, getHistory, 
     banners.slice(0, 4).forEach((e, i) => {
       later(() => {
         if (i === 0) {
-          if (hype >= 3) impactLetters(e.label, 'mlg-impact--mega', 3000);
-          else if (hype >= 2) impactText(e.label, 'mlg-impact--mega', 2600);
+          if (hype >= 3) impactLetters(e.label, 'mlg-impact--mega', 2200);
+          else if (hype >= 2) impactText(e.label, 'mlg-impact--mega', 1900);
           else impactText(e.label);
           if (e.say) say(e.say);
         } else {
-          const div = spawn('mlg-impact mlg-impact--minor', e.label);
+          const div = impactText(e.label, 'mlg-impact--minor', 1300);
           div.style.top = `${52 + i * 8}%`;
-          later(() => div.remove(), 1800);
         }
-      }, i * 550);
+      }, i * 380);
     });
   };
 
@@ -824,12 +828,12 @@ export function createMLG({ container, layer, camera, fxGroup, rig, getHistory, 
     if (generalPos) later(() => dropSunglasses(generalPos[0], generalPos[1]), 3200);
     later(() => {
       const scores = computeScores(getHistory());
-      const div = spawn(
-        'mlg-impact mlg-impact--minor',
+      const div = impactText(
         `${status.winner.toUpperCase()} WINS · ${scores[status.winner]} PTS`,
+        'mlg-impact--minor',
+        2200,
       );
       div.style.top = '64%';
-      later(() => div.remove(), 2200);
     }, 3600);
     later(() => {
       rattlePieces(mateSq[0], mateSq[1], 2.4, []);
@@ -909,6 +913,8 @@ export function createMLG({ container, layer, camera, fxGroup, rig, getHistory, 
         const points = capturePoints(history);
         const { x, y } = screenPosOf(tr, tc);
         floatText(`+${points}${streak >= 2 ? ` ×${streak}` : ''}`, x, y - 30);
+        // Slightly delayed so the hitmarker tick lands first.
+        playCoinBurst(2 + Math.floor(points / 150), { when: 0.12 });
 
         if (events.some((e) => e.type === 'NOSCOPE')) {
           hitmarkerTrail(record.move.from, record.move.to);
@@ -924,7 +930,7 @@ export function createMLG({ container, layer, camera, fxGroup, rig, getHistory, 
         } else if (hype >= 2) {
           playAirhorn();
         } else if (Math.random() < 0.25) {
-          playAirhorn({ dur: 0.35, pitch: 1.1 });
+          playAirhorn({ dur: 0.65, pitch: 1.1 });
         }
         const top = events[0];
         if (top?.type === 'STREAK') playStreakStinger(Math.min(streak, 7));
@@ -975,7 +981,11 @@ export function createMLG({ container, layer, camera, fxGroup, rig, getHistory, 
       later(() => vignette.remove(), 1000);
       const warning = spawn('mlg-warning', '⚠ WARNING ⚠');
       later(() => warning.remove(), 1300);
-      playAirhorn({ dur: 0.35, pitch: 0.85 });
+      playAirhorn({ dur: 0.65, pitch: 0.85 });
+    },
+    onUndo() {
+      if (!enabled) return;
+      playFart();
     },
     onGameOver(status, generalPos) {
       if (!enabled) return;

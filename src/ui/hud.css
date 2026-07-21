@@ -288,7 +288,7 @@ body,
   /* Chromatic aberration fringes + drop shadow + red glow */
   text-shadow: -4px 0 0 #00e5ff, 4px 0 0 #ff00d4, 6px 6px 0 #000, 0 0 34px rgba(255, 0, 0, 0.65);
   white-space: nowrap;
-  animation: mlg-impact-pop 2.6s cubic-bezier(0.2, 1.4, 0.4, 1) forwards;
+  animation: mlg-impact-pop var(--mlg-life, 2.6s) cubic-bezier(0.2, 1.4, 0.4, 1) forwards;
 }
 
 /* Slam in from huge and blurred, overshoot-bounce, blast out. */
@@ -298,7 +298,7 @@ body,
   18% { transform: translate(-50%, -50%) scale(1.18) rotate(2deg) skewX(-1deg); }
   28% { transform: translate(-50%, -50%) scale(0.98) rotate(-1.2deg); }
   38% { transform: translate(-50%, -50%) scale(1.05) rotate(0.6deg); }
-  80% { transform: translate(-50%, -50%) scale(1.06) rotate(0deg); opacity: 1; }
+  72% { transform: translate(-50%, -50%) scale(1.06) rotate(0deg); opacity: 1; }
   100% { transform: translate(-50%, -50%) scale(1.9) rotate(-2deg); opacity: 0; filter: blur(4px); }
 }
 
@@ -575,7 +575,7 @@ body,
   font-size: clamp(64px, 13vw, 170px);
   padding: 0.05em 0;
   background: linear-gradient(90deg, transparent, rgba(0, 0, 0, 0.55) 18%, rgba(0, 0, 0, 0.55) 82%, transparent);
-  animation: mlg-impact-slam 2.6s cubic-bezier(0.2, 1.4, 0.4, 1) forwards, mlg-hue 1.2s linear infinite;
+  animation: mlg-impact-slam var(--mlg-life, 2.6s) cubic-bezier(0.2, 1.4, 0.4, 1) forwards, mlg-hue 1.2s linear infinite;
 }
 
 @keyframes mlg-impact-slam {
@@ -584,7 +584,7 @@ body,
   18% { transform: scale(1.22) rotate(1.4deg); }
   28% { transform: scale(0.97) rotate(-0.8deg); }
   38% { transform: scale(1.07) rotate(0.4deg); }
-  80% { transform: scale(1.08) rotate(0deg); opacity: 1; }
+  72% { transform: scale(1.08) rotate(0deg); opacity: 1; }
   100% { transform: scale(2.2) rotate(-1.5deg); opacity: 0; filter: blur(5px); }
 }
 
@@ -596,11 +596,11 @@ body,
    .mlg-letter spans; the parent only fades itself out at the end (this rule
    must stay below .mlg-gg and --mega so it wins the animation property). */
 .mlg-impact--letters {
-  animation: mlg-letters-out 4.2s linear forwards;
+  animation: mlg-letters-out var(--mlg-life, 4.2s) linear forwards;
 }
 
 @keyframes mlg-letters-out {
-  0%, 84% { opacity: 1; }
+  0%, 70% { opacity: 1; }
   100% { opacity: 0; }
 }
 

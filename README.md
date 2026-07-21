@@ -29,8 +29,8 @@ Production build: `npm run build`, then `npm run preview`.
   for the advisor and cannon), and the history panel shows plain notation.
 - **Auto-flip** — optional: the camera swings 180° after each move so the
   player to move is always at the bottom.
-- **Sound effects** — synthesized with the Web Audio API (no audio files):
-  select, move, capture, check, game over.
+- **Sound effects** — synthesized with the Web Audio API: select, move,
+  capture, check, game over.
 - **Move history** — side panel in WXF notation (e.g. `炮 C2=5`).
 - **Undo** — one ply per click; also revives a finished game.
 - **Persistence** — the game auto-saves to localStorage after every move and
@@ -44,12 +44,14 @@ Production build: `npm run build`, then `npm run preview`.
     HUMILIATION (soldier takes chariot), 360 NOSCOPE (long cannon snipe,
     with a hitmarker trail), LEVEL UP (soldier crosses the river),
     DOUBLE KILL → BEYOND GODLIKE streaks.
-  - Synthesized **airhorns**, record scratches, coin blips — and checkmate
-    lands in **slow motion**, then drops a dubstep wobble-bass while the
-    camera does a full 360° victory orbit through confetti + emoji rain,
-    and the winning general receives its sunglasses. Stalemate gets "BRUH."
-  - All synthesized/CSS/emoji — still zero asset files. Everything respects
-    the mute toggle and cleans up on undo/new game.
+  - **Airhorns** (a real CC0 sample - synthesized ones never sounded
+    convincing), plus synthesized record scratches and coin blips — and
+    checkmate lands in **slow motion**, then drops a dubstep wobble-bass
+    while the camera does a full 360° victory orbit through confetti + emoji
+    rain, and the winning general receives its sunglasses. Stalemate gets
+    "BRUH."
+  - Everything else is synthesized/CSS/emoji, no asset files. Everything
+    respects the mute toggle and cleans up on undo/new game.
 
 ## MLG glossary (for the uninitiated)
 

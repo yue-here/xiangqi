@@ -290,6 +290,7 @@ async function undo() {
   }
   await Promise.all(jobs);
   sfx.playUndo();
+  mlg.onUndo();
 
   const [lastFrom, lastTo] = lastMoveOf(game.history);
   highlights.setLastMove(lastFrom, lastTo);
