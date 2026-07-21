@@ -49,9 +49,10 @@ Production build: `npm run build`, then `npm run preview`.
     checkmate lands in **slow motion**, then drops a dubstep wobble-bass
     while the camera does a full 360° victory orbit through confetti + emoji
     rain, and the winning general receives its sunglasses. Stalemate gets
-    "BRUH."
-  - Everything else is synthesized/CSS/emoji, no asset files. Everything
-    respects the mute toggle and cleans up on undo/new game.
+    "BRUH." Undo gets a **fart**.
+  - Everything else is synthesized/CSS/emoji; the only asset files are the
+    bundled CC0 airhorn samples. Everything respects the mute toggle and
+    cleans up on undo/new game.
 
 ## MLG glossary (for the uninitiated)
 
@@ -89,6 +90,9 @@ require repetition arbitration that is out of scope for casual hotseat play.
   — also `pinned`, `doubleChariotMate`, `soldierStalemate`.
 - Browser-driven end-to-end check (needs the dev server running and
   Microsoft Edge installed): `npm run verify:e2e`.
+- Audio sandbox (dev only): `http://localhost:5173/sound-lab.html` — play
+  every MLG stinger in isolation, A/B the candidate airhorn samples, and tune
+  blast duration/pitch/echo live. Not part of the production entry point.
 
 ## Code map
 
@@ -99,6 +103,6 @@ src/
   scene/          Three.js scene, board/piece textures, highlights, camera rig
   ui/             DOM HUD: turn indicator, history panel, dialogs
   audio/          Web Audio synthesis for game sounds
-  fx/             MLG mode (visuals + airhorn synthesis)
+  fx/             MLG mode (visuals + audio: sampled airhorn, synth stingers)
   store/          localStorage persistence (move-list replay)
 ```
